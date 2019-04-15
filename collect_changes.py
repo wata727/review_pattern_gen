@@ -15,6 +15,7 @@ from urllib.request import urlopen
 from configparser import ConfigParser
 from CodeTokenizer.tokenizer import TokeNizer
 from lang_extentions import lang_extentions
+import pdb
 
 config = ConfigParser()
 config.read('config')
@@ -45,8 +46,8 @@ def get_project_changes(owner, repo, lang, diffs_file=None):
     with open(diffs_file, "r", encoding="utf-8") as diffs:
         reader = DictReader(diffs)
         for diff_path in reader:
-            if diff_path["commit_len"] == "1":
-                continue
+            # if diff_path["commit_len"] == "1":
+                # continue
             changes_set = curl_diffs(diff_path)
             if changes_set == []:
                 continue
@@ -85,6 +86,7 @@ def curl_diffs(diff_path):
                 "file_path": diff.path,
                 "changes_set": TN.make_change_set(source, target)
             }
+            # pdb.set_trace()
             if out_metricses["changes_set"] == -1:
                 continue
 

@@ -3,6 +3,7 @@ from configparser import ConfigParser
 from difflib import ndiff
 from prefixspan import PrefixSpan_frequent, PrefixSpan
 import np
+import pdb
 
 config = ConfigParser()
 config.read('config')
@@ -31,10 +32,10 @@ def remove_dup_changes(changes_sets):
     current_pull = 0
     for changes_set in changes_sets:
         if current_pull == changes_set["number"] and\
-                changes_set["changes_set"] in new_changes:
+                changes_set["changes_set"] in list(map(lambda x: x["changes_set"], new_changes)):
             continue
         current_pull = changes_set["number"]
-        new_changes.append(changes_set["changes_set"])
+        new_changes.append(changes_set)
     return new_changes
 
 
@@ -54,10 +55,16 @@ def generate_rules(changes_sets, threshold):
     freq_seqs = sorted(freq_seqs, reverse=True)
     return freq_seqs
 
+def is_code_in_changes_set(changes_set, code):
+    for i, _ in enumerate(changes_set):
+        if changes_set[i:len(code) + i] == code:
+            return True
+    return False
+
 with open(INPUT_JSON_NAME, mode='r', encoding='utf-8') as f:
     changes_sets = load(f)
 
-changes = remove_dup_changes(changes_sets)
+changes_sets = remove_dup_changes(changes_sets)
 
 # new_changes = []
 # for tokens in changes:
@@ -66,20 +73,23 @@ changes = remove_dup_changes(changes_sets)
 #     if new_tokens != []:
 #         new_changes.append(new_tokens)
 
-changes = [[x for x in tokens
-            if not x.endswith("\n") and not x.endswith(" ")]
-           for tokens in changes]
+changes = []
+for changes_set in changes_sets:
+    tokens = [x for x in changes_set["changes_set"] if not x.endswith("\n") and not x.endswith(" ")]
+    changes_set["changes_set"] = tokens
+    changes.append(changes_set)
 
-freq_seqs = generate_rules(changes, 7)
+freq_seqs = generate_rules(list(map(lambda x: x["changes_set"], changes)), 1)
 
 new_rules = []
 
 for i, rule in enumerate(freq_seqs):
     count = rule[0]
     code = rule[1]
+    matches = [change for change in changes if is_code_in_changes_set(change['changes_set'], code)]
     trigger_tokens = list(np.hstack([x[2:].split(" ") if " " in x[2:] else [x[2:]] for x in code if not x.startswith("+")]))
     code = remove_redundant_symbols(code)
-    new_rules.append({"count": count, "code": code, "trigger": trigger_tokens})
+    new_rules.append({"count": count, "code": code, "trigger": trigger_tokens, "sources": list(map(lambda x: x['1-n_url'], matches))})
 
 with open(OUTPUT_JSON_NAME, mode='w', encoding='utf-8') as f:
     dump(new_rules, f, indent=1)
